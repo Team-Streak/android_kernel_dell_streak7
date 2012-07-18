@@ -472,25 +472,37 @@ static void save_multi_touch_struct(  uint16_t x_coord,uint16_t y_coord,uint8_t 
 }
 static void tp_report_coord_via_mt_protocol(void)
 {
+    int num_fingers = 0;
 	int i;
 	PRINT_IN
-	for(i=0;i<ATMEL_REPORT_POINTS;i++)
+	for(i = 0; i < ATMEL_REPORT_POINTS; i++)
 	{
-		if (g_tp->msg[i].z == -1)
-			continue;
+		if (g_tp->msg[i].z > 0) // We have a finger!
+		{
+			//printk("z: %d, w: %d, i: %d", g_tp->msg[i].z, g_tp->msg[i].w, i);
 
-		input_report_abs(g_tp->input, ABS_MT_TOUCH_MAJOR, g_tp->msg[i].z); 
-		input_report_abs(g_tp->input, ABS_MT_WIDTH_MAJOR, g_tp->msg[i].w);
-		input_report_abs(g_tp->input, ABS_MT_POSITION_X, g_tp->msg[i].coord.x); 
-		input_report_abs(g_tp->input, ABS_MT_POSITION_Y, g_tp->msg[i].coord.y);	
-		input_report_abs(g_tp->input, ABS_MT_TRACKING_ID, i);
-		MY_INFO_PRINTK( 1,"INFO_LEVEL:" "i %d : x %d y %d z %d w %d\n",i,g_tp->msg[i].coord.x,g_tp->msg[i].coord.y,g_tp->msg[i].z,g_tp->msg[i].w ); 
+			input_report_abs(g_tp->input, ABS_MT_TOUCH_MAJOR, g_tp->msg[i].z);
+			input_report_abs(g_tp->input, ABS_MT_WIDTH_MAJOR, g_tp->msg[i].w);
+			input_report_abs(g_tp->input, ABS_MT_POSITION_X, g_tp->msg[i].coord.x);
+			input_report_abs(g_tp->input, ABS_MT_POSITION_Y, g_tp->msg[i].coord.y);
+			input_report_abs(g_tp->input, ABS_MT_TRACKING_ID, i);
+			//MY_INFO_PRINTK( 1,"INFO_LEVEL:" "i %d : x %d y %d z %d w %d\n",i,g_tp->msg[i].coord.x,g_tp->msg[i].coord.y,g_tp->msg[i].z,g_tp->msg[i].w ); 
 
-		input_mt_sync(g_tp->input); 
-		
-		if (g_tp->msg[i].z == 0)
-			g_tp->msg[i].z = -1;
+			input_report_key(g_tp->input, BTN_TOUCH, 1);
+
+			input_mt_sync(g_tp->input);
+
+			num_fingers++;
+		}
 	}
+
+	// If no fingers are touching report a blank input_mt_sync
+	if (num_fingers == 0)
+	{
+		input_mt_sync(g_tp->input);
+	}
+
+	printk("Doing full sync");
 	input_sync(g_tp->input);
 	
 	PRINT_OUT
