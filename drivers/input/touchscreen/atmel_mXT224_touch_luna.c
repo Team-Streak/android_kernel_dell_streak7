@@ -502,7 +502,7 @@ static void tp_report_coord_via_mt_protocol(void)
 		input_mt_sync(g_tp->input);
 	}
 
-	printk("Doing full sync");
+	//printk("Doing full sync");
 	input_sync(g_tp->input);
 	
 	PRINT_OUT
