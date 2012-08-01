@@ -12,6 +12,14 @@ config BCM4329
 	  If you choose to build a module, it'll be called dhd. Say M if
 	  unsure.
 
+config BCM4329_FIRST_SCAN
+	depends on BCM4329
+	bool "first scan support"
+	default n
+	---help---
+	Initiate broadcast scan (active scan) just after
+	initializing with network interface.
+
 config BCM4329_FW_PATH
 	depends on BCM4329
 	string "Firmware path"
@@ -64,4 +72,11 @@ config BCM4329_GET_CUSTOM_MAC_ENABLE
 	default n
 	---help---
 	   Use mac address provided by bcm4329_wlan platform device.
+
+config BCM4329_CSCAN_ENABLE
+	bool "Enable Combo Scan"
+	depends on BCM4329
+	default n
+	---help---
+	   Enable Combo Scan
 endif

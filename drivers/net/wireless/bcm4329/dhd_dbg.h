@@ -21,13 +21,13 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_dbg.h,v 1.5.6.2.4.2.14.10 2010-05-21 21:49:38 Exp $
+ * $Id: dhd_dbg.h,v 1.5.6.2.4.2.14.10 2010/05/21 21:49:38 Exp $
  */
 
 #ifndef _dhd_dbg_
 #define _dhd_dbg_
 
-#if 0 || (defined DHD_DEBUG)
+#ifdef DHD_DEBUG
 
 #define DHD_ERROR(args)	       do {if ((dhd_msg_level & DHD_ERROR_VAL) && (net_ratelimit())) \
 								printf args;} while (0)
@@ -58,7 +58,7 @@
 #define DHD_BTA_ON()		(dhd_msg_level & DHD_BTA_VAL)
 #define DHD_ISCAN_ON()		(dhd_msg_level & DHD_ISCAN_VAL)
 
-#else 
+#else /* DHD_DEBUG */
 
 #define DHD_ERROR(args)    	do {if (net_ratelimit()) printf args;} while (0)
 #define DHD_TRACE(args)
@@ -87,7 +87,7 @@
 #define DHD_EVENT_ON()		0
 #define DHD_BTA_ON()		0
 #define DHD_ISCAN_ON()		0
-#endif 
+#endif /* DHD_DEBUG */
 
 #define DHD_LOG(args)
 

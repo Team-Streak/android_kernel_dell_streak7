@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h,v 1.601.4.15.2.14.2.62.4.3 2011-02-09 23:31:02 Exp $
+ * $Id: wlioctl.h,v 1.601.4.15.2.14.2.62.4.3 2011/02/09 23:31:02 Exp $
  */
 
 
@@ -255,11 +255,10 @@ typedef struct wl_join_params {
 #define WLC_CNTRY_BUF_SZ	4		
 
 typedef struct wl_country {
-	char country_abbrev[WLC_CNTRY_BUF_SZ];	
-	int32 rev;				
-	char ccode[WLC_CNTRY_BUF_SZ];		
+	char country_abbrev[WLC_CNTRY_BUF_SZ];
+	int32 rev;
+	char ccode[WLC_CNTRY_BUF_SZ];
 } wl_country_t;
-
 
 typedef enum sup_auth_status {
 	
@@ -863,7 +862,7 @@ typedef struct wl_ioctl {
 #define PM_MAX	1
 #define PM_FAST 2
 
-#define LISTEN_INTERVAL			20
+#define LISTEN_INTERVAL			10
 
 #define	INTERFERE_NONE	0	
 #define	NON_WLAN	1	
@@ -1337,8 +1336,8 @@ typedef struct wl_pfn_param {
 	int32 lost_network_timeout;	
 	int16 flags;			
 	int16 rssi_margin;		
-	int32  repeat_scan;		
-	int32  max_freq_adjust; 
+	int32  repeat_scan;
+	int32  max_freq_adjust;
 } wl_pfn_param_t;
 
 typedef struct wl_pfn {
@@ -1350,9 +1349,9 @@ typedef struct wl_pfn {
 	int32			wsec;			
 } wl_pfn_t;
 
-#define PNO_SCAN_MAX_FW		508*1000	
-#define PNO_SCAN_MAX_FW_SEC	PNO_SCAN_MAX_FW/1000 
-#define PNO_SCAN_MIN_FW_SEC	10			
+#define PNO_SCAN_MAX_FW		508*1000
+#define PNO_SCAN_MAX_FW_SEC	PNO_SCAN_MAX_FW/1000
+#define PNO_SCAN_MIN_FW_SEC	10
 
 
 #define TOE_TX_CSUM_OL		0x00000001

@@ -23,7 +23,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.h,v 13.35.14.7.6.8 2009-10-14 04:22:25 Exp $
+ * $Id: bcmsdh.h,v 13.35.14.7.6.8 2009/10/14 04:22:25 Exp $
  */
 
 #ifndef	_bcmsdh_h_
@@ -179,7 +179,7 @@ typedef struct {
 	/* attach to device */
 	void *(*attach)(uint16 vend_id, uint16 dev_id, uint16 bus, uint16 slot,
 	                uint16 func, uint bustype, void * regsva, osl_t * osh,
-	                void * param);
+	                void * param, void *dev);
 	/* detach from device */
 	void (*detach)(void *ch);
 } bcmsdh_driver_t;

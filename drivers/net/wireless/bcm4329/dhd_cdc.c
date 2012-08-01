@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c,v 1.22.4.2.4.7.2.41 2010-06-23 19:58:18 Exp $
+ * $Id: dhd_cdc.c,v 1.22.4.2.4.7.2.41 2010/06/23 19:58:18 Exp $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -43,11 +43,6 @@
 
 extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 
-#ifdef CONFIG_WLAN_ALLOC_STATIC_MEM
-	#define DHD_PORT_LEN        SZ_16K
-	extern void *addr_4329_dhd_prot;
-#endif
-
 /* Packet alignment for most efficient SDIO (can change based on platform) */
 #ifndef DHD_SDALIGN
 #define DHD_SDALIGN	32
@@ -64,7 +59,6 @@ extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 #define ROUND_UP_MARGIN	2048 	/* Biggest SDIO block size possible for
 				 * round off at the end of buffer
 				 */
-extern unsigned char q_wlan_flag; 
 
 typedef struct dhd_prot {
 	uint16 reqid;
@@ -80,8 +74,11 @@ dhdcdc_msg(dhd_pub_t *dhd)
 {
 	dhd_prot_t *prot = dhd->prot;
 	int len = ltoh32(prot->msg.len) + sizeof(cdc_ioctl_t);
+	int ret;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
+
+	dhd_os_wake_lock(dhd);
 
 	/* NOTE : cdc->msg.len holds the desired length of the buffer to be
 	 *        returned. Only up to CDC_MAX_MSG_SIZE of this buffer area
@@ -91,7 +88,9 @@ dhdcdc_msg(dhd_pub_t *dhd)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return dhd_bus_txctl(dhd->bus, (uchar*)&prot->msg, len);
+	ret = dhd_bus_txctl(dhd->bus, (uchar*)&prot->msg, len);
+	dhd_os_wake_unlock(dhd);
+	return ret;
 }
 
 static int
@@ -151,7 +150,8 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 		memcpy(prot->buf, buf, len);
 
 	if ((ret = dhdcdc_msg(dhd)) < 0) {
-		DHD_ERROR(("dhdcdc_query_ioctl: dhdcdc_msg failed w/status %d\n", ret));
+		if (!dhd->hang_was_sent)
+			DHD_ERROR(("dhdcdc_query_ioctl: dhdcdc_msg failed w/status %d\n", ret));
 		goto done;
 	}
 
@@ -206,6 +206,18 @@ dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 	DHD_CTL(("%s: cmd %d len %d\n", __FUNCTION__, cmd, len));
 
+	if (dhd->busstate == DHD_BUS_DOWN) {
+		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
+		return -EIO;
+	}
+
+	/* don't talk to the dongle if fw is about to be reloaded */
+	if (dhd->hang_was_sent) {
+		DHD_ERROR(("%s: HANG was sent up earlier. Not talking to the chip\n",
+			__FUNCTION__));
+		return -EIO;
+	}
+
 	memset(msg, 0, sizeof(cdc_ioctl_t));
 
 	msg->cmd = htol32(cmd);
@@ -252,7 +264,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len)
 	dhd_prot_t *prot = dhd->prot;
 	int ret = -1;
 
-	if (dhd->busstate == DHD_BUS_DOWN) {
+	if ((dhd->busstate == DHD_BUS_DOWN) || dhd->hang_was_sent) {
 		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
 		return ret;
 	}
@@ -427,7 +439,7 @@ int
 dhd_prot_attach(dhd_pub_t *dhd)
 {
 	dhd_prot_t *cdc;
-#if 0
+
 #ifndef DHD_USE_STATIC_BUF
 	if (!(cdc = (dhd_prot_t *)MALLOC(dhd->osh, sizeof(dhd_prot_t)))) {
 		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
@@ -439,23 +451,6 @@ dhd_prot_attach(dhd_pub_t *dhd)
 		goto fail;
 	}
 #endif /* DHD_USE_STATIC_BUF */
-#endif
-#ifdef CONFIG_WLAN_ALLOC_STATIC_MEM
-	if (addr_4329_dhd_prot != NULL &&  sizeof(dhd_prot_t)<=DHD_PORT_LEN) {
-		cdc = (dhd_prot_t *)addr_4329_dhd_prot;
-		
-	}
-	else
-#endif
-	{
-		DHD_ERROR(("%s: static alloc of %d-byte cdc failed, addr_4329_dhd_prot=0x%p,DHD_PORT_LEN=%d\n",
-			 __FUNCTION__,sizeof(dhd_prot_t),addr_4329_dhd_prot,DHD_PORT_LEN));
-		if (!(cdc = (dhd_prot_t *)MALLOC(dhd->osh, sizeof(dhd_prot_t)))) {
-			DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
-			goto fail;
-		}
-	}
-
 	memset(cdc, 0, sizeof(dhd_prot_t));
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
@@ -472,18 +467,10 @@ dhd_prot_attach(dhd_pub_t *dhd)
 	return 0;
 
 fail:
-#if 0
 #ifndef DHD_USE_STATIC_BUF
 	if (cdc != NULL)
 		MFREE(dhd->osh, cdc, sizeof(dhd_prot_t));
 #endif
-	return BCME_NOMEM;
-#endif
-#ifdef CONFIG_WLAN_ALLOC_STATIC_MEM
-	if (addr_4329_dhd_prot == NULL || sizeof(dhd_prot_t)>DHD_PORT_LEN)
-#endif
-	if (cdc != NULL)
-		MFREE(dhd->osh, cdc, sizeof(dhd_prot_t));
 	return BCME_NOMEM;
 }
 
@@ -491,16 +478,9 @@ fail:
 void
 dhd_prot_detach(dhd_pub_t *dhd)
 {
-#if 0
 #ifndef DHD_USE_STATIC_BUF
 	MFREE(dhd->osh, dhd->prot, sizeof(dhd_prot_t));
 #endif
-	dhd->prot = NULL;
-#endif
-#ifdef CONFIG_WLAN_ALLOC_STATIC_MEM
-	 if (addr_4329_dhd_prot==NULL || sizeof(dhd_prot_t)>DHD_PORT_LEN)
-#endif
-	MFREE(dhd->osh, dhd->prot, sizeof(dhd_prot_t));
 	dhd->prot = NULL;
 }
 
@@ -544,11 +524,6 @@ dhd_prot_init(dhd_pub_t *dhd)
 
 	/* Always assumes wl for now */
 	dhd->iswl = TRUE;
-	
-	if (ret >= 0) {
-		printk("wl configuration done!\n");
-		q_wlan_flag = 1;
-	}
 
 	return ret;
 }
